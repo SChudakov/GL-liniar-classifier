@@ -1,13 +1,18 @@
 import numpy as np
 from scipy import interp
 
-import matplotlib.pyplot as plt
 from matplotlib.colors import ListedColormap
 from matplotlib.pyplot import figure
 
 from sklearn.metrics import plot_roc_curve, auc
 from sklearn.model_selection import train_test_split, StratifiedKFold
 from sklearn.naive_bayes import GaussianNB
+
+import matplotlib.pyplot as plt
+from sklearn import datasets
+import os
+
+_plots_dir = 'plots/'
 
 
 class InHouseGaussianNB:
@@ -61,10 +66,11 @@ class InHouseGaussianNB:
         for feature_id in range(len(X[0])):
             for state in self._unique_states:
                 entry = (feature_id, state)
-                self._occurrence_probability[entry] = self._observations_by_feature_and_state_map[entry] \
-                                                      / self._total_state_observations_map[state]
+                result = self._observations_by_feature_and_state_map[entry] / self._total_state_observations_map[state]
+                self._occurrence_probability[entry] = result
 
     def _get_bucket_id(self, range_start, range_end, feature_value):
+        delta = 0.00001
         if feature_value < range_start:
             return 0
         if feature_value > range_end:
@@ -72,7 +78,7 @@ class InHouseGaussianNB:
         for bucket_id in range(self._num_of_buckets):
             bucket_start = self._get_bucket_start(range_start, range_end, bucket_id)
             bucket_end = self._get_bucket_end(range_start, range_end, bucket_id)
-            if bucket_start <= feature_value <= bucket_end:
+            if bucket_start - delta <= feature_value <= bucket_end + delta:
                 return bucket_id
 
     def _get_bucket_start(self, range_start, range_end, bucket_id):
@@ -127,7 +133,30 @@ class InHouseGaussianNB:
         return result
 
 
-def test_classifiers(names, classifiers, data_sets, h):
+def plot_features(dataset, name_1, pos_1, name_2, pos_2):
+    X1 = dataset[0][:, pos_1]
+    X2 = dataset[0][:, pos_2]
+    y = dataset[1]
+
+    x_min, x_max = X1.min() - .5, X1.max() + .5
+    y_min, y_max = X2.min() - .5, X2.max() + .5
+
+    plt.figure(2, figsize=(8, 6))
+    plt.clf()
+
+    # Plot the training points
+    plt.scatter(X1, X2, c=y, cmap=plt.cm.Set1, edgecolor='k')
+    plt.xlabel(name_1)
+    plt.ylabel(name_2)
+
+    plt.xlim(x_min, x_max)
+    plt.ylim(y_min, y_max)
+    plt.xticks(())
+    plt.yticks(())
+
+    plt.savefig(os.path.join(_plots_dir, f'features_plot_{name_1}_{name_2}.png'))
+
+def test_classifiers(names, classifiers, data_sets, h, name_1, name_2):
     plt.figure(figsize=(27, 9))
     i = 1
     for data_set_count, data_set in enumerate(data_sets):
@@ -187,10 +216,10 @@ def test_classifiers(names, classifiers, data_sets, h):
             i += 1
 
     plt.tight_layout()
-    plt.show()
+    plt.savefig(os.path.join(_plots_dir, f'probability_density_{name_1}_{name_2}.png'))
 
 
-def roc_curve_and_auc(names, classifiers, data_sets):
+def roc_curve_and_auc(names, classifiers, data_sets, name_1, name_2):
     for data_set_count, data_set in enumerate(data_sets):
         X, y = data_set
 
@@ -234,15 +263,13 @@ def roc_curve_and_auc(names, classifiers, data_sets):
             ax.set(xlim=[-0.05, 1.05], ylim=[-0.05, 1.05],
                    title=f"ROC curve for {name}")
             ax.legend(loc="lower right")
-            plt.show()
+            plt.savefig(os.path.join(_plots_dir, f'roc_auc_{name_1}_{name_2}.png'))
             plt.close(fig)
 
 
-def load_iris():
-    pass
+def execute_for_features(dataset, name_1, pos_1, name_2, pos_2):
+    plot_features(dataset, name_1, pos_1, name_2, pos_2)
 
-
-def main():
     h = .02  # step size in the mesh
 
     names = [
@@ -253,10 +280,38 @@ def main():
         GaussianNB(),
         InHouseGaussianNB(10, 1.0)
     ]
-    data_sets = [load_iris()]
+    X = dataset[0]
+    X = X[:, (pos_1, pos_2)]
+    y = dataset[1]
 
-    test_classifiers(names, classifiers, data_sets, h)
-    roc_curve_and_auc(names, classifiers, data_sets, h)
+    data_sets = [(X, y)]
+
+    test_classifiers(names, classifiers, data_sets, h, name_1, name_2)
+
+    roc_curve_and_auc(names, classifiers, data_sets, name_1, name_2)
+
+
+def to_binary_feature_dataset(dataset):
+    X = list()
+    y = list()
+    for i in range(len(dataset.data)):
+        if dataset.target[i] in (0, 1):
+            X.append(dataset.data[i])
+            y.append(dataset.target[i])
+    X = np.array(X)
+    y = np.array(y)
+    return X, y
+
+
+def main():
+    iris = datasets.load_iris()
+    dataset = to_binary_feature_dataset(iris)
+
+    feature_names = ['Sepal Length', 'Sepal Width', 'Petal Length', 'Petal Width']
+    for pos_1, name_1 in enumerate(feature_names):
+        for pos_2 in range(pos_1 + 1, len(feature_names)):
+            name_2 = feature_names[pos_2]
+            execute_for_features(dataset, name_1, pos_1, name_2, pos_2)
 
 
 if __name__ == '__main__':
