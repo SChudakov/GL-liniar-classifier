@@ -156,6 +156,7 @@ def plot_features(dataset, name_1, pos_1, name_2, pos_2):
 
     plt.savefig(os.path.join(_plots_dir, f'features_plot_{name_1}_{name_2}.png'))
 
+
 def test_classifiers(names, classifiers, data_sets, h, name_1, name_2):
     plt.figure(figsize=(27, 9))
     i = 1
@@ -263,7 +264,7 @@ def roc_curve_and_auc(names, classifiers, data_sets, name_1, name_2):
             ax.set(xlim=[-0.05, 1.05], ylim=[-0.05, 1.05],
                    title=f"ROC curve for {name}")
             ax.legend(loc="lower right")
-            plt.savefig(os.path.join(_plots_dir, f'roc_auc_{name_1}_{name_2}.png'))
+            plt.savefig(os.path.join(_plots_dir, f'roc_auc_{name}_{name_1}_{name_2}.png'))
             plt.close(fig)
 
 
